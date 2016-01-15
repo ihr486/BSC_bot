@@ -1,0 +1,482 @@
+#!/usr/bin/env python
+# -*- coding: UTF-8 -*-
+
+import numpy as np
+from urllib import urlencode
+import oauth2
+import datetime as dt
+import daemon.runner
+import sys
+import os
+import random
+import time
+
+consumer_key = 'xxx'
+consumer_secret = 'xxx'
+access_token = 'xxx'
+access_token_secret = 'xxx'
+
+latitude = 35.7145
+longitude = 139.7618
+altitude = 40
+
+constellations = {
+    'And': u"アンドロメダ",
+    'Mon': u"いっかくじゅう",
+    'Sgr': u"いて",
+    'Del': u"いるか",
+    'Ind': u"インディアン",
+    'Psc': u"うお",
+    'Lep': u"うさぎ",
+    'Boo': u"うしかい",
+    'Hya': u"うみへび",
+    'Eri': u"エリダヌス",
+    'Tau': u"おうし",
+    'CMa': u"おおいぬ",
+    'Lup': u"おおかみ",
+    'UMa': u"おおぐま",
+    'Vir': u"おとめ",
+    'Ari': u"おひつじ",
+    'Ori': u"オリオン",
+    'Pic': u"がか",
+    'Cas': u"カシオペヤ",
+    'Dor': u"かじき",
+    'Cnc': u"かに",
+    'Com': u"かみのけ",
+    'Cha': u"カメレオン",
+    'Crv': u"からす",
+    'CrB': u"かんむり",
+    'Tuc': u"きょしちょう",
+    'Aur': u"ぎょしゃ",
+    'Cam': u"きりん",
+    'Pav': u"くじゃく",
+    'Cet': u"くじら",
+    'Cep': u"ケフェウス",
+    'Cen': u"ケンタウルス",
+    'Mic': u"けんびきょう",
+    'CMi': u"こいぬ",
+    'Equ': u"こうま",
+    'Vul': u"こぎつね",
+    'UMi': u"こぐま",
+    'LMi': u"こじし",
+    'Crt': u"コップ",
+    'Lyr': u"こと",
+    'Cir': u"コンパス",
+    'Ara': u"さいだん",
+    'Sco': u"さそり",
+    'Tri': u"さんかく",
+    'Leo': u"しし",
+    'Nor': u"じょうぎ",
+    'Sct': u"たて",
+    'Cae': u"ちょうこくぐ",
+    'Scl': u"ちょうこくしつ",
+    'Gru': u"つる",
+    'Men': u"テーブルさん",
+    'Lib': u"てんびん",
+    'Lac': u"とかげ",
+    'Hor': u"とけい",
+    'Vol': u"とびうお",
+    'Pup': u"とも",
+    'Mus': u"はえ",
+    'Cyg': u"はくちょう",
+    'Oct': u"はちぶんぎ",
+    'Col': u"はと",
+    'Aps': u"ふうちょう",
+    'Gem': u"ふたご",
+    'Peg': u"ペガスス",
+    'Ser': u"へび",
+    'Oph': u"へびつかい",
+    'Her': u"ヘルクレス",
+    'Per': u"ペルセウス",
+    'Vel': u"ほ",
+    'Tel': u"ぼうえんきょう",
+    'Phe': u"ほうおう",
+    'Ant': u"ポンプ",
+    'Aqr': u"みずがめ",
+    'Hyi': u"みずへび",
+    'Cru': u"みなみじゅうじ",
+    'PsA': u"みなみのうお",
+    'CrA': u"みなみのかんむり"
+}
+
+bayer_notation = {
+    'Alp': u"α",
+    'Bet': u"β",
+    'Gam': u"γ",
+    'Kap': u"κ",
+    'Eps': u"ε",
+    'The': u"θ",
+    'Chi': u"χ",
+    'Sig': u"σ",
+    'Iot': u"ι",
+    'Zet': u"ζ",
+    'Rho': u"ρ",
+    'Pi ': u"π",
+    'Eta': u"η",
+    'Lam': u"λ",
+    'Del': u"δ",
+    'Xi ': u"ξ",
+    'Mu ': u"μ",
+    'Omi': u"ο",
+    'Phi': u"φ",
+    'Nu ': u"ν",
+    'Ups': u"υ",
+    'Ome': u"ω",
+    'Psi': u"ψ",
+    'Tau': u"τ"
+}
+
+orientations = [
+    u"北",
+    u"北北東",
+    u"北東",
+    u"東北東",
+    u"東",
+    u"東南東",
+    u"南東",
+    u"南南東",
+    u"南",
+    u"南南西",
+    u"南西",
+    u"西南西",
+    u"西",
+    u"西北西",
+    u"北西",
+    u"北北西",
+    u"北"
+]
+
+spectral_types = {
+    'O': u"青",
+    'B': u"青白",
+    'A': u"白",
+    'F': u"黄白",
+    'G': u"黄",
+    'K': u"橙",
+    'M': u"赤"
+}
+
+names = {
+    15: u"アルフェラッツ",
+    39: u"アルゲニブ",
+    168: u"シェダル",
+    188: u"デネブ・カイトス",
+    337: u"ミラク",
+    472: u"アケルナル",
+    5340: u"アークトゥルス",
+    7557: u"アルタイル",
+    1457: u"アルデバラン",
+    6134: u"アンタレス",
+    2326: u"カノープス",
+    1708: u"カペラ",
+    2491: u"シリウス",
+    5056: u"スピカ",
+    8728: u"フォーマルハウト",
+    2943: u"プロキオン",
+    7001: u"ベガ",
+    2061: u"ベテルギウス",
+    2990: u"ポルックス",
+    1713: u"リゲル",
+    3982: u"レグルス",
+    424: u"ポラリス",
+    3748: u"アルファルド",
+    936: u"アルゴル",
+    4534: u"デネボラ",
+    5054: u"ミザール",
+    603: u"アルマーク",
+    617: u"エルナト",
+    681: u"ミラ",
+    5267: u"ハダル",
+    4730: u"アクルックス",
+    4853: u"ミモザ",
+    2618: u"アダーラ",
+    2891: u"カストル",
+    6527: u"シャウラ",
+    4763: u"ガクルックス",
+    1790: u"ベラトリックス",
+    3685: u"ミアプラキドゥス",
+    1903: u"アルニラム",
+    8425: u"アルナイル",
+    4905: u"アリオト",
+    1948: u"アルニタク",
+    4301: u"デューベ",
+    6879: u"カウス・アウストラリス",
+    1017: u"ミルファク",
+    2693: u"ウェズン",
+    5191: u"ベネトナシュ",
+    6553: u"サルガス",
+    2827: u"アルドラ",
+    8232: u"サダルスード",
+    21: u"カフ",
+    99: u"アンカ",
+    321: u"マルファク",
+    343: u"マルファク",
+    390: u"アディル",
+    544: u"アトリア",
+    546: u"メサルティム",
+    553: u"シェラタン",
+    596: u"アルリシャ",
+    897: u"アカマール",
+    911: u"メカブ",
+    963: u"フォルナシス",
+    951: u"ボテイン",
+    1131: u"アティーク",
+    1140: u"セラエノ",
+    1142: u"エレクトラ",
+    1145: u"タイゲタ",
+    1149: u"マイア",
+    1151: u"アステロープ",
+    1156: u"メローペ",
+    1165: u"アルシオン",
+    1178: u"アトラス",
+    1180: u"プレイオン",
+    1228: u"メンキブ",
+    1231: u"ザウラク",
+    1298: u"ベイド",
+    1325: u"ケイド",
+    1409: u"アイン",
+    1464: u"テーミム",
+    1481: u"セプトラム",
+    1605: u"アルマーツ",
+    1612: u"ハエダス",
+    1666: u"クルサ",
+    1791: u"アルナト",
+    1829: u"ニハル",
+    1852: u"ミンタカ",
+    1855: u"タビット",
+    1865: u"アルネブ",
+    1879: u"メイッサ",
+    1956: u"ファクト",
+    2004: u"サイフ",
+    2088: u"メンカリナン",
+    2216: u"プロパス",
+    2282: u"フルド",
+    2286: u"カルクス",
+    2294: u"ミルザム",
+    2421: u"アルヘナ",
+    2484: u"アルジール",
+    2657: u"イシス",
+    2845: u"ゴメイサ",
+    3165: u"ナオス",
+    3208: u"テグメン",
+    3275: u"アルシアウカット",
+    3307: u"アヴィオール",
+    3418: u"ミンキル",
+    3569: u"タリサ",
+    3572: u"サルタン",
+    3634: u"アルスハイル",
+    3699: u"スクツラム",
+    3773: u"アルターフ",
+    3852: u"スブラ",
+    4031: u"アルダファーラ",
+    4057: u"アルギエバ",
+    4247: u"プラエキプア",
+    4287: u"アルケス",
+    4357: u"ゾスマ",
+    4359: u"コルト",
+    4434: u"ギアンファール",
+    4540: u"ミネルバ",
+    4623: u"アルキバ",
+    4630: u"ミンカール",
+    4660: u"メグレツ",
+    4689: u"ザニア",
+    4757: u"アルゴラブ",
+    4825: u"ポリマ",
+    4910: u"アウバ",
+    4915: u"コルカロリ",
+    4932: u"ヴィンデミアトリクス",
+    4968: u"ディアデム",
+    5062: u"アルコル",
+    5107: u"ヘーゼ",
+    5235: u"ムフリッド",
+    5435: u"セギナス",
+    5533: u"メルガ",
+    5563: u"コカブ",
+    5603: u"ブラキアム",
+    5733: u"アルカルロプス",
+    5735: u"フェルカド",
+    5747: u"ヌサカン",
+    5793: u"アルフェッカ",
+    5854: u"ウヌカルハイ",
+    5984: u"グラフィアス",
+    6008: u"マルフィク",
+    6027: u"ジャバ",
+    6084: u"アルニヤト",
+    6117: u"カジャム",
+    6148: u"コルネフォロス",
+    6370: u"アラキス",
+    6378: u"サビク",
+    6396: u"アルディバ",
+    6410: u"サリン",
+    6508: u"レサト",
+    6526: u"マーシム",
+    6536: u"ラスタバン",
+    6555: u"クマ",
+    6556: u"ラサルハーグ",
+    6603: u"チェバルライ",
+    6688: u"グルミウム",
+    6705: u"エタミン",
+    6746: u"ナシュ",
+    6789: u"イルデュン",
+    7106: u"シェリアク",
+    7121: u"ヌンキ",
+    7141: u"アリャ",
+    7178: u"スラファート",
+    7194: u"アセラ",
+    7264: u"アルバルダ",
+    7298: u"アラドファ",
+    7417: u"アルビレオ",
+    7462: u"アルサフィ",
+    7479: u"シャム",
+    7525: u"タラツェット",
+    7773: u"アルシャト",
+    7790: u"ピーコック",
+    8131: u"キタルファ",
+    8162: u"アルデラミン",
+    8308: u"エニフ",
+    8414: u"サダルメリク",
+    8417: u"アルクルハ",
+    8650: u"マタール",
+    7924: u"デネブ"
+}
+
+def tweet(message):
+    client = oauth2.Client(oauth2.Consumer(key=consumer_key, secret=consumer_secret), oauth2.Token(access_token, access_token_secret))
+
+    client.request('https://api.twitter.com/1.1/statuses/update.json', 'POST', urlencode({'status': message}))
+
+def rotation_matrix_Y(theta):
+    return np.array([[np.cos(theta), 0, -np.sin(theta)],
+                      [0, 1, 0],
+                      [np.sin(theta), 0, np.cos(theta)]])
+
+def rotation_matrix_Z(theta):
+    return np.array([[np.cos(theta), -np.sin(theta), 0],
+                      [np.sin(theta), np.cos(theta), 0],
+                      [0, 0, 1]])
+
+class Star:
+    def __init__(self, HR, RA, DEC, MAG, SN, COL):
+        self.HR = HR
+        self.RA = RA / 180.0 * np.pi
+        self.DEC = DEC / 180.0 * np.pi
+        self.MAG = MAG
+        self.SN = SN
+        self.COL = COL
+
+    def get_equatorial_position(self):
+        X = np.cos(self.RA) * np.cos(self.DEC)
+        Y = np.sin(self.DEC)
+        Z = np.sin(self.RA) * np.cos(self.DEC)
+
+        return np.array([X, Y, Z])
+
+class Daemon:
+    def __init__(self):
+        self.stdin_path = '/dev/null'
+        self.stdout_path = '/dev/null'
+        self.stderr_path = '/dev/null'
+        self.pidfile_timeout = 10
+        self.directory = os.getcwd()
+        self.pidfile_path = os.path.join(self.directory, 'daemon.pid')
+
+        main_catalog = open('BSC52.dat', 'r')
+
+        self.star_list = []
+
+        for line in main_catalog:
+            try:
+                HR = int(line[0:4])
+                RAh = float(line[75:77])
+                RAm = float(line[77:79])
+                RAs = float(line[79:83])
+                DEd = float(line[84:86])
+                if line[83] == '-':
+                    DEd = -DEd
+                DEm = float(line[86:88])
+                DEs = float(line[88:90])
+                MAG = float(line[102:107])
+                if MAG > 4.0:
+                    continue
+                FN = int(line[4:7])
+                BC = line[7:10]
+                BC1 = line[10]
+                CC = line[11:14]
+                SP = line[129]
+
+                if SP in spectral_types:
+                    COL = spectral_types[SP]
+                else:
+                    continue
+
+                RA = (RAh / 24.0 + RAm / 1440.0 + RAs / 86400.0) * 360.0
+                DEC = (DEd + DEm / 60.0 + DEs / 3600.0)
+
+                if CC in constellations:
+                    CN = constellations[CC]
+                    if BC in bayer_notation:
+                        BN = bayer_notation[BC]
+                        SN = u"{0}座{1}{2}星".format(CN, BN, BC1.strip())
+                        self.star_list.append(Star(HR, RA, DEC, MAG, SN, COL))
+                    else:
+                        SN = u"{0}座{1}番星".format(CN, FN)
+                        self.star_list.append(Star(HR, RA, DEC, MAG, SN, COL))
+            except ValueError:
+                continue
+
+    def run(self):
+        old_UTC = dt.datetime.min
+        while True:
+            UTC = dt.datetime.utcnow()
+
+            delta = (UTC - old_UTC).total_seconds()
+
+            if delta < 600:
+                time.sleep(1)
+                continue
+
+            old_UTC = UTC
+
+            TJD0 = dt.datetime(1968, 5, 24, 0, 0, 0, 0)
+            TJD = (UTC - TJD0).total_seconds() / 86400.0
+
+            GSD = 0.671262 + 1.0027379094 * TJD
+            RSD = GSD + longitude / 360.0
+
+            while True:
+                star = random.choice(self.star_list)
+
+                EQP = star.get_equatorial_position()
+                RRP = np.dot(rotation_matrix_Y(-RSD * 2 * np.pi), EQP)
+                HZP = np.dot(rotation_matrix_Z((90.0 - latitude) / 180.0 * np.pi), RRP)
+
+                azimuth = np.angle(-HZP[0] + 1j * HZP[2], deg=True)
+                altitude = np.angle(np.sqrt(HZP[0]**2 + HZP[2]**2) + 1j * HZP[1], deg=True)
+
+                if azimuth >= 0:
+                    orientation = orientations[int((azimuth + 11.25) / 22.5)]
+                else:
+                    orientation = orientations[int((azimuth + 371.25) / 22.5)]
+
+                if altitude < 0:
+                    continue
+                elif altitude > 80:
+                    alt_note = u"天頂付近"
+                elif altitude < 10:
+                    alt_note = u"地平線付近"
+                else:
+                    alt_note = u""
+
+                if star.HR in names:
+                    name = u"「{0}」".format(names[star.HR])
+                else:
+                    name = u""
+
+                message = u"{4}の空 {5} {0}{7} {1:.1f}等 {6}色 方位{2:.0f}° 高度{3:.0f}°".format(star.SN, star.MAG, azimuth, altitude, orientation, alt_note, star.COL, name)
+
+                tweet(message.encode('UTF-8'))
+                break
+
+if __name__ == "__main__":
+    runner = daemon.runner.DaemonRunner(Daemon())
+    runner.do_action()
